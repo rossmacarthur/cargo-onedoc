@@ -15,6 +15,9 @@ pulldown-cmark-to-cmark = "10.0.4"
 anyhow = "1.0.66"
 cargo_metadata = "0.15.2"
 camino = "1.1.1"
+serde = { version = "1.0.147", features = ["derive"] }
+toml = "0.5.9"
+regex-macro = "0.2.0"
 
 [dependencies.clap]
 version = "4.0.26"
