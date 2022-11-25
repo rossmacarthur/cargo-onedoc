@@ -1,0 +1,7 @@
+[package]
+name = "cargo-onedoc"
+version = "0.0.0"
+authors = ["Ross MacArthur <ross@macarthur.io>"]
+edition = "2021"
+description = "Coming soon.."
+license = "MIT OR Apache-2.0"
