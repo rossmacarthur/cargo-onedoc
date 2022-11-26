@@ -11,12 +11,12 @@ use std::fs;
 use std::io;
 
 use anyhow::{anyhow, Context as _, Result};
-use camino::Utf8Path as Path;
+use camino::{Utf8Path as Path, Utf8PathBuf as PathBuf};
 use cargo_metadata::{Metadata, Package};
 use clap::Parser as _;
 use pulldown_cmark::{Options, Parser};
 
-use crate::config::Config;
+use crate::config::{Config, File};
 
 #[derive(Debug, clap::Parser)]
 #[clap(
@@ -41,6 +41,7 @@ pub struct Context {
     check: bool,
     config: Config,
     metadata: Metadata,
+    manifest_dir: PathBuf,
 }
 
 impl Context {
@@ -53,7 +54,6 @@ fn main() -> Result<()> {
     let Cargo::Command(Opt { check }) = Cargo::parse();
 
     let mut engine = upon::Engine::new();
-    engine.add_template("readme", include_str!("README_TEMPLATE.md"))?;
     engine.add_filter("trim_prefix", |s: &str, p: &str| {
         s.trim_start_matches(p).to_owned()
     });
@@ -61,31 +61,69 @@ fn main() -> Result<()> {
     let metadata = cargo_metadata::MetadataCommand::new().exec()?;
 
     let config_path = metadata.workspace_root.join("onedoc.toml");
-    let config = match fs::read_to_string(config_path) {
+    let mut config = match fs::read_to_string(config_path) {
         Ok(contents) => toml::from_str(&contents)?,
         Err(err) if err.kind() == io::ErrorKind::NotFound => Config::default(),
         Err(err) => return Err(err).context("failed to read current README")?,
     };
 
+    let manifest_dir = {
+        let pkg = metadata.root_package().context("no root package")?;
+        pkg.manifest_path.parent().unwrap().to_owned()
+    };
+
+    for file in &mut config.files {
+        file.input = manifest_dir.join(&file.input);
+        file.output = manifest_dir.join(&file.output);
+    }
+
     let ctx = Context {
         check,
         config,
         metadata,
+        manifest_dir,
     };
 
-    generate(&ctx, &engine)?;
+    if ctx.config.files.is_empty() {
+        let pkg = ctx.metadata.root_package().context("no root package")?;
+        let input = input_path(&pkg)?;
+        let output = pkg.readme().context("no readme path in package manifest")?;
+        let file = File {
+            input,
+            output,
+            template: None,
+        };
+        generate(&ctx, &mut engine, &file)?;
+    } else {
+        for file in &ctx.config.files {
+            generate(&ctx, &mut engine, file)?;
+        }
+    }
 
     Ok(())
 }
 
-fn generate(ctx: &Context, engine: &upon::Engine) -> Result<()> {
+fn generate(ctx: &Context, engine: &mut upon::Engine, file: &File) -> Result<()> {
     let pkg = ctx.package()?;
-    let output = pkg.readme().context("no readme path in package manifest")?;
 
-    let input = get_input_path(pkg)?;
+    let name = match &file.template {
+        Some(path) => {
+            let full = ctx.manifest_dir.join(path);
+            let contents = fs::read_to_string(full)?;
+            engine.add_template(path.to_string(), contents)?;
+            path.to_string()
+        }
+        None => {
+            let name = "<anonymous>";
+            engine.add_template(name, include_str!("README_TEMPLATE.md"))?;
+            name.to_string()
+        }
+    };
 
-    let text =
-        get_module_comment(input).with_context(|| format!("failed to read from `{}`", &input))?;
+    engine.add_template("readme", include_str!("README_TEMPLATE.md"))?;
+
+    let text = get_module_comment(&file.input)
+        .with_context(|| format!("failed to read from `{}`", &file.input))?;
     let mut events = Vec::from_iter(Parser::new_ext(&text, Options::all()));
 
     // apply fixups
@@ -97,7 +135,7 @@ fn generate(ctx: &Context, engine: &upon::Engine) -> Result<()> {
     let contents = render::to_cmark(&events).context("failed to render contents")?;
 
     let mut rendered = engine
-        .get_template("readme")
+        .get_template(&name)
         .unwrap()
         .render(upon::value! {
             manifest: pkg,
@@ -122,8 +160,7 @@ fn generate(ctx: &Context, engine: &upon::Engine) -> Result<()> {
         }
     }
 
-    let dir = pkg.manifest_path.parent().unwrap();
-    let current = match fs::read_to_string(&output) {
+    let current = match fs::read_to_string(&file.output) {
         Ok(c) => c,
         Err(err) if err.kind() == io::ErrorKind::NotFound => String::new(),
         Err(err) => return Err(err).context("failed to read current README")?,
@@ -132,35 +169,35 @@ fn generate(ctx: &Context, engine: &upon::Engine) -> Result<()> {
     if current == rendered {
         println!(
             "{} -> {} is up to date",
-            input.strip_prefix(dir).unwrap(),
-            output.strip_prefix(dir).unwrap(),
+            file.input.strip_prefix(&ctx.manifest_dir).unwrap(),
+            file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
         );
     } else if ctx.check {
         println!(
             "{} -> {} is out of date",
-            input.strip_prefix(dir).unwrap(),
-            output.strip_prefix(dir).unwrap(),
+            file.input.strip_prefix(&ctx.manifest_dir).unwrap(),
+            file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
         );
     } else {
-        fs::write(&output, rendered)
-            .with_context(|| format!("failed to write to `{}`", &output))?;
+        fs::write(&file.output, rendered)
+            .with_context(|| format!("failed to write to `{}`", &file.output))?;
         println!(
             "{} -> {} was updated",
-            input.strip_prefix(dir).unwrap(),
-            output.strip_prefix(dir).unwrap(),
+            file.input.strip_prefix(&ctx.manifest_dir).unwrap(),
+            file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
         );
     }
 
     Ok(())
 }
 
-fn get_input_path(pkg: &Package) -> Result<&Path> {
+fn input_path(pkg: &Package) -> Result<PathBuf> {
     if let Some(t) = pkg
         .targets
         .iter()
         .find(|t| t.kind.iter().any(|k| k == "lib"))
     {
-        return Ok(&t.src_path);
+        return Ok(t.src_path.clone());
     }
 
     if let Some(t) = pkg
@@ -168,7 +205,7 @@ fn get_input_path(pkg: &Package) -> Result<&Path> {
         .iter()
         .find(|t| t.kind.iter().any(|k| k == "bin"))
     {
-        return Ok(&t.src_path);
+        return Ok(t.src_path.clone());
     }
 
     Err(anyhow!(
