@@ -87,7 +87,7 @@ fn main() -> Result<()> {
 
     if ctx.config.files.is_empty() {
         let pkg = ctx.metadata.root_package().context("no root package")?;
-        let input = input_path(&pkg)?;
+        let input = input_path(pkg)?;
         let output = pkg.readme().context("no readme path in package manifest")?;
         let file = File {
             input,
