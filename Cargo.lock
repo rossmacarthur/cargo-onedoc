@@ -40,8 +40,9 @@ dependencies = [
  "camino",
  "cargo_metadata",
  "clap",
- "pulldown-cmark",
+ "pulldown-cmark 0.9.2",
  "pulldown-cmark-to-cmark",
+ "pulldown-cmark-toc",
  "regex-macro",
  "serde",
  "toml",
@@ -128,6 +129,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4217ad341ebadf8d8e724e264f13e593e0648f5b3e94b3896a5df283be015ecc"
 
 [[package]]
+name = "lazy_static"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -180,6 +187,18 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca36dea94d187597e104a5c8e4b07576a8a45aa5db48a65e12940d3eb7461f55"
+dependencies = [
+ "bitflags",
+ "getopts",
+ "memchr",
+ "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d9cc634bc78768157b5cbfe988ffcd1dcba95cd2b2f03a88316c08c6d00ed63"
@@ -196,7 +215,18 @@ version = "10.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0194e6e1966c23cc5fd988714f85b18d548d773e81965413555d96569931833d"
 dependencies = [
- "pulldown-cmark",
+ "pulldown-cmark 0.9.2",
+]
+
+[[package]]
+name = "pulldown-cmark-toc"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b3ccae6f09dbd34c82dfd66ec17b348fe3987f7353da47da93c2d75f6bcbbc7"
+dependencies = [
+ "lazy_static",
+ "pulldown-cmark 0.7.2",
+ "regex",
 ]
 
 [[package]]

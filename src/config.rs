@@ -6,7 +6,7 @@ use serde::Deserialize;
 #[derive(Debug, Default, Deserialize)]
 pub struct Config {
     /// Files to process
-    #[serde(default)]
+    #[serde(default, rename = "file")]
     pub files: Vec<File>,
 
     /// Link remapping

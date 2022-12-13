@@ -18,6 +18,7 @@ camino = "1.1.1"
 serde = { version = "1.0.147", features = ["derive"] }
 toml = "0.5.9"
 regex-macro = "0.2.0"
+pulldown-cmark-toc = "0.1.1"
 
 [dependencies.clap]
 version = "4.0.26"
