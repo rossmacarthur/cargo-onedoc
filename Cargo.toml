@@ -1,12 +1,15 @@
 [package]
 name = "cargo-onedoc"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Ross MacArthur <ross@macarthur.io>"]
 edition = "2021"
-description = "Generate README.md from doc comments"
+description = "Generate your README.md from Rust doc comments"
 readme = "README.md"
 repository = "https://github.com/rossmacarthur/cargo-onedoc"
 license = "MIT OR Apache-2.0"
+keywords = ["readme", "markdown", "documentation", "cargo"]
+categories = ["development-tools::cargo-plugins"]
+include = ["src/**/*", "LICENSE-*", "README.md"]
 
 [dependencies]
 upon = "0.6.0"
