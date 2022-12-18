@@ -1,0 +1,34 @@
+name: build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      RUSTFLAGS: --deny warnings
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: dtolnay/rust-toolchain@stable
+
+    - name: Rustfmt
+      continue-on-error:
+      run: cargo fmt -- --check
+
+    - name: Clippy
+      run: cargo clippy --workspace --all-targets
+
+    - name: Test
+      run: cargo test --workspace --all-targets
+
+  readme:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: dtolnay/rust-toolchain@stable
+
+    - name: Check README
+      run: cargo run -- onedoc --check
