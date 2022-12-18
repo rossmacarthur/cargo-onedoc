@@ -4,7 +4,7 @@
 
 [![Crates.io Version](https://img.shields.io/crates/v/{{ manifest.name }}.svg)](https://crates.io/crates/{{ manifest.name }})
 [![Docs.rs Latest](https://img.shields.io/badge/docs.rs-latest-blue.svg)](https://docs.rs/{{ manifest.name }})
-[![Build Status](https://img.shields.io/github/workflow/status/{{ manifest.repository | trim_prefix: "https://github.com/" }}/build/trunk)]({{ manifest.repository }}/actions?query=workflow%3Abuild)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/{{ manifest.repository | trim_prefix: "https://github.com/" }}/build.yaml?branch=trunk)]({{ manifest.repository }}/actions/workflows/build.yaml?query=branch%3Atrunk)
 
 {{ summary }}
 

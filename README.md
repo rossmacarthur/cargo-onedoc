@@ -4,7 +4,7 @@
 
 [![Crates.io Version](https://img.shields.io/crates/v/cargo-onedoc.svg)](https://crates.io/crates/cargo-onedoc)
 [![Docs.rs Latest](https://img.shields.io/badge/docs.rs-latest-blue.svg)](https://docs.rs/cargo-onedoc)
-[![Build Status](https://img.shields.io/github/workflow/status/rossmacarthur/cargo-onedoc/build/trunk)](https://github.com/rossmacarthur/cargo-onedoc/actions?query=workflow%3Abuild)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/rossmacarthur/cargo-onedoc/build.yaml?branch=trunk)](https://github.com/rossmacarthur/cargo-onedoc/actions/workflows/build.yaml?query=branch%3Atrunk)
 
 📝 Generate README.md from doc comments.
 
