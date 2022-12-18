@@ -10,7 +10,7 @@ mod render;
 use std::fs;
 use std::io;
 
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{anyhow, bail, Context as _, Result};
 use camino::{Utf8Path as Path, Utf8PathBuf as PathBuf};
 use cargo_metadata::{Metadata, Package};
 use clap::Parser as _;
@@ -180,7 +180,7 @@ fn generate(ctx: &Context, engine: &mut upon::Engine, file: &File) -> Result<()>
             file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
         );
     } else if ctx.check {
-        println!(
+        bail!(
             "{} -> {} is out of date",
             file.input.strip_prefix(&ctx.manifest_dir).unwrap(),
             file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
