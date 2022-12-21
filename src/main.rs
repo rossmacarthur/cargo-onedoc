@@ -7,17 +7,18 @@ mod config;
 mod fix;
 mod render;
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 
 use anyhow::{anyhow, bail, Context as _, Result};
-use camino::{Utf8Path as Path, Utf8PathBuf as PathBuf};
-use cargo_metadata::{Metadata, Package};
+use camino::Utf8Path as Path;
+use cargo_metadata::Metadata;
 use clap::Parser as _;
 use pulldown_cmark::{Options, Parser};
 use pulldown_cmark_toc as toc;
 
-use crate::config::{Config, File};
+use crate::config::{Config, Doc};
 
 #[derive(Debug, clap::Parser)]
 #[clap(
@@ -40,122 +41,175 @@ struct Opt {
 
 pub struct Context {
     check: bool,
-    config: Config,
     metadata: Metadata,
-    manifest_dir: PathBuf,
-}
-
-impl Context {
-    fn package(&self) -> Result<&Package> {
-        self.metadata.root_package().context("no root package")
-    }
+    config: Config,
 }
 
 fn main() -> Result<()> {
     let Cargo::Command(Opt { check }) = Cargo::parse();
-
-    let mut engine = upon::Engine::new();
-    engine.add_filter("trim_prefix", |s: &str, p: &str| {
-        s.trim_start_matches(p).to_owned()
-    });
-
     let metadata = cargo_metadata::MetadataCommand::new().exec()?;
+    let config = config::load(&metadata)?;
+    generate_all(Context {
+        check,
+        metadata,
+        config,
+    })
+}
 
-    let config_path = metadata.workspace_root.join("onedoc.toml");
-    let mut config = match fs::read_to_string(config_path) {
-        Ok(contents) => toml::from_str(&contents)?,
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Config::default(),
+fn generate_all(ctx: Context) -> Result<()> {
+    let mut engine = {
+        let mut e = upon::Engine::new();
+        e.add_filter("trim_prefix", |s: &str, p: &str| {
+            s.trim_start_matches(p).to_owned()
+        });
+        e
+    };
+
+    for doc in &ctx.config.docs {
+        generate_doc(&mut engine, &ctx, doc)?;
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum Kind {
+    RustDoc,
+    Markdown,
+}
+
+type Links = BTreeMap<String, Vec<String>>;
+
+fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context, doc: &Doc) -> Result<()> {
+    // Compile the template
+    let template_name = match &doc.template {
+        Some(path) => {
+            let contents = fs::read_to_string(path)?;
+            engine
+                .add_template(path.to_string(), contents)
+                .map_err(|e| anyhow!("{:#}", e))?;
+            path.to_string()
+        }
+        None => {
+            let name = "<anonymous>";
+            engine
+                .add_template(name, include_str!("README_TEMPLATE.md"))
+                .map_err(|e| anyhow!("{:#}", e))?;
+            name.to_string()
+        }
+    };
+
+    // Load the Markdown to process
+    let to_process = {
+        let mut items = Vec::new();
+        for input in &doc.inputs {
+            let item = match input.extension() {
+                Some("rs") => {
+                    let kind = Kind::RustDoc;
+                    let text = get_module_comment(input)
+                        .with_context(|| format!("failed to read from `{}`", input))?;
+                    (kind, text)
+                }
+                Some("md") => {
+                    let kind = Kind::Markdown;
+                    let text = fs::read_to_string(input)
+                        .with_context(|| format!("failed to read from `{}`", input))?;
+                    (kind, text)
+                }
+                Some(_) | None => {
+                    bail!("unsupported file extension `{}`", input);
+                }
+            };
+            items.push(item);
+        }
+        items
+    };
+
+    let rendered = render(engine, ctx, &template_name, to_process)?;
+
+    let current = match fs::read_to_string(&doc.output) {
+        Ok(c) => c,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => String::new(),
         Err(err) => return Err(err).context("failed to read current README")?,
     };
 
-    let manifest_dir = {
-        let pkg = metadata.root_package().context("no root package")?;
-        pkg.manifest_path.parent().unwrap().to_owned()
-    };
-
-    for file in &mut config.files {
-        file.input = manifest_dir.join(&file.input);
-        file.output = manifest_dir.join(&file.output);
-    }
-
-    let ctx = Context {
-        check,
-        config,
-        metadata,
-        manifest_dir,
-    };
-
-    if ctx.config.files.is_empty() {
-        let pkg = ctx.metadata.root_package().context("no root package")?;
-        let input = input_path(pkg)?;
-        let output = pkg.readme().context("no readme path in package manifest")?;
-        let file = File {
-            input,
-            output,
-            template: None,
-        };
-        generate(&ctx, &mut engine, &file)?;
+    if current == rendered {
+        println!("{} is up to date", &doc.output);
+    } else if ctx.check {
+        bail!("{} is out of date", &doc.output);
     } else {
-        for file in &ctx.config.files {
-            generate(&ctx, &mut engine, file)?;
-        }
+        fs::write(&doc.output, rendered)
+            .with_context(|| format!("failed to write to `{}`", &doc.output))?;
+        println!("{} was updated", &doc.output);
     }
 
     Ok(())
 }
 
-fn generate(ctx: &Context, engine: &mut upon::Engine, file: &File) -> Result<()> {
-    let pkg = ctx.package()?;
+fn get_module_comment(path: &Path) -> Result<String> {
+    let contents = fs::read_to_string(path)?;
+    let lines: Vec<_> = contents
+        .lines()
+        .take_while(|line| line.starts_with("//!"))
+        .map(|line| line.trim_start_matches("//! ").trim_start_matches("//!"))
+        .collect();
+    Ok(lines.join("\n"))
+}
 
-    let name = match &file.template {
-        Some(path) => {
-            let full = ctx.manifest_dir.join(path);
-            let contents = fs::read_to_string(full)?;
-            engine.add_template(path.to_string(), contents)?;
-            path.to_string()
+fn render(
+    engine: &upon::Engine<'_>,
+    ctx: &Context,
+    template_name: &str,
+    to_process: Vec<(Kind, String)>,
+) -> Result<String> {
+    let mut events = Vec::new();
+    let mut link_config = Links::new();
+
+    for (kind, text) in &to_process {
+        let mut es = Vec::from_iter(Parser::new_ext(text, Options::all()));
+        // common fixes
+        es = fix::headings(es);
+        match kind {
+            Kind::RustDoc => {
+                es = fix::code_blocks(es).context("failed to fix codeblocks")?;
+                es = fix::doc_links(ctx, &mut link_config, es);
+            }
+            Kind::Markdown => {
+                es = fix::rel_links(ctx, es);
+            }
         }
-        None => {
-            let name = "<anonymous>";
-            engine.add_template(name, include_str!("README_TEMPLATE.md"))?;
-            name.to_string()
-        }
+        events.extend(es);
+    }
+
+    // Now render contents as markdown
+    let full_contents = render::to_cmark(&events).context("failed to render contents")?;
+
+    let (summary, contents) = {
+        let (s, c) = fix::summary(events);
+        let summary = render::to_cmark(&s).context("failed to render summary")?;
+        let contents = render::to_cmark(&c).context("failed to render contents")?;
+        (summary, contents)
     };
 
-    engine.add_template("readme", include_str!("README_TEMPLATE.md"))?;
-
-    let text = get_module_comment(&file.input)
-        .with_context(|| format!("failed to read from `{}`", &file.input))?;
-    let mut events = Vec::from_iter(Parser::new_ext(&text, Options::all()));
-
-    // apply fixups
-    events = fix::headings(events);
-    events = fix::code_blocks(events).context("failed to fix codeblocks")?;
-    let (events, url_config) = fix::links(ctx, events);
-    let (summary, events) = fix::summary(events);
-
-    // render contents as markdown
-    let summary = render::to_cmark(&summary).context("failed to render summary")?;
-    let contents = render::to_cmark(&events).context("failed to render contents")?;
-
-    let toc = toc::TableOfContents::new(&contents)
+    let toc = toc::TableOfContents::new(&full_contents)
         .to_cmark_with_options(toc::Options::default().levels(2..=6));
 
     let mut rendered = engine
-        .get_template(&name)
+        .get_template(template_name)
         .unwrap()
         .render(upon::value! {
-            manifest: pkg,
+            manifest: ctx.metadata.root_package().unwrap(),
             summary: summary,
             contents: contents,
+            full_contents: full_contents,
             toc: toc,
         })
         .map_err(|e| anyhow!("{:#}", e))?;
 
     // Append link info
-    if !url_config.is_empty() {
+    if !link_config.is_empty() {
         rendered.push_str("\n\n");
-        for (name, urls) in url_config {
-            for (i, u) in urls.into_iter().enumerate() {
+        for (name, links) in link_config {
+            for (i, u) in links.into_iter().enumerate() {
                 let name = if i == 0 {
                     name.to_owned()
                 } else {
@@ -167,65 +221,5 @@ fn generate(ctx: &Context, engine: &mut upon::Engine, file: &File) -> Result<()>
         }
     }
 
-    let current = match fs::read_to_string(&file.output) {
-        Ok(c) => c,
-        Err(err) if err.kind() == io::ErrorKind::NotFound => String::new(),
-        Err(err) => return Err(err).context("failed to read current README")?,
-    };
-
-    if current == rendered {
-        println!(
-            "{} -> {} is up to date",
-            file.input.strip_prefix(&ctx.manifest_dir).unwrap(),
-            file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
-        );
-    } else if ctx.check {
-        bail!(
-            "{} -> {} is out of date",
-            file.input.strip_prefix(&ctx.manifest_dir).unwrap(),
-            file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
-        );
-    } else {
-        fs::write(&file.output, rendered)
-            .with_context(|| format!("failed to write to `{}`", &file.output))?;
-        println!(
-            "{} -> {} was updated",
-            file.input.strip_prefix(&ctx.manifest_dir).unwrap(),
-            file.output.strip_prefix(&ctx.manifest_dir).unwrap(),
-        );
-    }
-
-    Ok(())
-}
-
-fn input_path(pkg: &Package) -> Result<PathBuf> {
-    if let Some(t) = pkg
-        .targets
-        .iter()
-        .find(|t| t.kind.iter().any(|k| k == "lib"))
-    {
-        return Ok(t.src_path.clone());
-    }
-
-    if let Some(t) = pkg
-        .targets
-        .iter()
-        .find(|t| t.kind.iter().any(|k| k == "bin"))
-    {
-        return Ok(t.src_path.clone());
-    }
-
-    Err(anyhow!(
-        "failed to determine default source file for package"
-    ))
-}
-
-fn get_module_comment(path: &Path) -> Result<String> {
-    let contents = fs::read_to_string(path)?;
-    let lines: Vec<_> = contents
-        .lines()
-        .take_while(|line| line.starts_with("//!"))
-        .map(|line| line.trim_start_matches("//! ").trim_start_matches("//!"))
-        .collect();
-    Ok(lines.join("\n"))
+    Ok(rendered)
 }

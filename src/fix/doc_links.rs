@@ -1,17 +1,12 @@
-use std::collections::BTreeMap;
-
 use pulldown_cmark::{CowStr, Event, LinkType, Tag};
 use regex_macro::regex;
 
-use crate::Context;
-
-pub type Urls = BTreeMap<String, Vec<String>>;
+use crate::{Context, Links};
 
 /// Fixes intra-doc links.
-pub fn fix<'a>(ctx: &Context, events: Vec<Event<'a>>) -> (Vec<Event<'a>>, Urls) {
+pub fn fix<'a>(ctx: &Context, links: &mut Links, events: Vec<Event<'a>>) -> Vec<Event<'a>> {
     let mut iter = events.into_iter().peekable();
     let mut events = Vec::new();
-    let mut urls: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     while let Some(event) = iter.next() {
         match event {
@@ -30,12 +25,12 @@ pub fn fix<'a>(ctx: &Context, events: Vec<Event<'a>>) -> (Vec<Event<'a>>, Urls) 
                             Some(dest) => {
                                 let link_ref = link_ref(text);
 
-                                let urls = urls.entry(link_ref.clone()).or_insert_with(Vec::new);
-                                let i = match urls.iter().position(|u| *u == dest) {
+                                let links = links.entry(link_ref.clone()).or_insert_with(Vec::new);
+                                let i = match links.iter().position(|u| *u == dest) {
                                     Some(i) => i,
                                     None => {
-                                        let i = urls.len();
-                                        urls.push(dest);
+                                        let i = links.len();
+                                        links.push(dest);
                                         i
                                     }
                                 };
@@ -80,7 +75,7 @@ pub fn fix<'a>(ctx: &Context, events: Vec<Event<'a>>) -> (Vec<Event<'a>>, Urls) 
         }
     }
 
-    (events, urls)
+    events
 }
 
 fn link_ref(text: &str) -> String {

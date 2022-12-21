@@ -12,16 +12,16 @@ categories = ["development-tools::cargo-plugins"]
 include = ["src/**/*", "LICENSE-*", "README.md"]
 
 [dependencies]
-upon = "0.6.0"
+anyhow = "1.0.66"
+camino = "1.1.1"
+cargo_metadata = "0.15.2"
 pulldown-cmark = "0.9.2"
 pulldown-cmark-to-cmark = "10.0.4"
-anyhow = "1.0.66"
-cargo_metadata = "0.15.2"
-camino = "1.1.1"
+pulldown-cmark-toc = "0.1.1"
+regex-macro = "0.2.0"
 serde = { version = "1.0.147", features = ["derive"] }
 toml = "0.5.9"
-regex-macro = "0.2.0"
-pulldown-cmark-toc = "0.1.1"
+upon = "0.6.0"
 
 [dependencies.clap]
 version = "4.0.26"
