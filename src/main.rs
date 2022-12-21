@@ -60,10 +60,10 @@ fn main() -> Result<()> {
         None => metadata.root_package().context("no root package")?,
     };
 
-    let config = config::load(&metadata, &pkg)?;
+    let config = config::load(&metadata, pkg)?;
     generate_all(Context {
         check,
-        package: &pkg,
+        package: pkg,
         config,
     })
 }
