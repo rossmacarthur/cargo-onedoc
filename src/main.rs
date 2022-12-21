@@ -13,7 +13,7 @@ use std::io;
 
 use anyhow::{anyhow, bail, Context as _, Result};
 use camino::Utf8Path as Path;
-use cargo_metadata::Metadata;
+use cargo_metadata::Package;
 use clap::Parser as _;
 use pulldown_cmark::{Options, Parser};
 use pulldown_cmark_toc as toc;
@@ -32,31 +32,43 @@ enum Cargo {
     Command(Opt),
 }
 
-#[derive(Debug, clap::Args)]
+#[derive(Debug, Clone, clap::Args)]
 #[command(author, version, about)]
 struct Opt {
+    #[clap(long, short)]
+    package: Option<String>,
+
     #[clap(long)]
     check: bool,
 }
 
-pub struct Context {
+pub struct Context<'a> {
     check: bool,
-    metadata: Metadata,
+    package: &'a Package,
     config: Config,
 }
-
 fn main() -> Result<()> {
-    let Cargo::Command(Opt { check }) = Cargo::parse();
+    let Cargo::Command(Opt { check, package }) = Cargo::parse();
     let metadata = cargo_metadata::MetadataCommand::new().exec()?;
-    let config = config::load(&metadata)?;
+
+    let pkg = match package {
+        Some(name) => metadata
+            .workspace_packages()
+            .into_iter()
+            .find(|p| p.name == name)
+            .ok_or_else(|| anyhow!("package `{}` not found in workspace", name))?,
+        None => metadata.root_package().context("no root package")?,
+    };
+
+    let config = config::load(&metadata, &pkg)?;
     generate_all(Context {
         check,
-        metadata,
+        package: &pkg,
         config,
     })
 }
 
-fn generate_all(ctx: Context) -> Result<()> {
+fn generate_all(ctx: Context<'_>) -> Result<()> {
     let mut engine = {
         let mut e = upon::Engine::new();
         e.add_filter("trim_prefix", |s: &str, p: &str| {
@@ -79,7 +91,7 @@ enum Kind {
 
 type Links = BTreeMap<String, Vec<String>>;
 
-fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context, doc: &Doc) -> Result<()> {
+fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context<'_>, doc: &Doc) -> Result<()> {
     // Compile the template
     let template_name = match &doc.template {
         Some(path) => {
@@ -197,7 +209,7 @@ fn render(
         .get_template(template_name)
         .unwrap()
         .render(upon::value! {
-            manifest: ctx.metadata.root_package().unwrap(),
+            manifest: ctx.package,
             summary: summary,
             contents: contents,
             full_contents: full_contents,

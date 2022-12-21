@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context as _, Result};
 use camino::{Utf8Path as Path, Utf8PathBuf as PathBuf};
 use cargo_metadata::{Metadata, Package};
 use serde::Deserialize;
@@ -25,23 +25,22 @@ pub struct Config {
 pub struct Doc {
     /// A list of input file paths.
     ///
-    /// Either absolute paths or relative to the Cargo manifest directory.
+    /// Either absolute paths or relative to the Cargo workspace directory.
     #[serde(rename = "input", deserialize_with = "input::deserialize")]
     pub inputs: Vec<PathBuf>,
 
     /// The output file path.
     ///
-    /// Either an absolute path or relative to the Cargo manifest directory.
+    /// Either an absolute path or relative to the Cargo workspace directory.
     pub output: PathBuf,
 
     /// The template to render the processed Markdown
     pub template: Option<PathBuf>,
 }
 
-pub fn load(metadata: &Metadata) -> Result<Config> {
-    let root_pkg = metadata.root_package().context("no root package")?;
-    let path = metadata.workspace_root.join("onedoc.toml");
-    let manifest_dir = root_pkg.manifest_path.parent().unwrap().to_owned();
+pub fn load(metadata: &Metadata, pkg: &Package) -> Result<Config> {
+    let workspace_dir = &metadata.workspace_root;
+    let path = workspace_dir.join("onedoc.toml");
 
     let mut config = {
         let ctx = || format!("failed to load config from `{}`", path);
@@ -50,17 +49,17 @@ pub fn load(metadata: &Metadata) -> Result<Config> {
 
     // Make sure to specify at least one doc to process
     if config.docs.is_empty() {
-        config.docs = vec![default_doc(root_pkg)?]
+        config.docs = vec![default_doc(pkg)?]
     }
 
     // Normalize all the paths
     for doc in &mut config.docs {
         for input in &mut doc.inputs {
-            *input = manifest_dir.join(&input);
+            *input = workspace_dir.join(&input);
         }
-        doc.output = manifest_dir.join(&doc.output);
+        doc.output = workspace_dir.join(&doc.output);
         if let Some(p) = doc.template.as_mut() {
-            *p = manifest_dir.join(&p);
+            *p = workspace_dir.join(&p);
         }
     }
 
@@ -77,8 +76,8 @@ fn load_from_path(path: &Path) -> Result<Config> {
 }
 
 fn default_doc(pkg: &Package) -> Result<Doc> {
-    let input = input_path(pkg)?;
-    let output = output_path(pkg);
+    let input = default_input_path(pkg)?;
+    let output = default_output_path(pkg);
     let doc = Doc {
         inputs: vec![input],
         output,
@@ -87,33 +86,26 @@ fn default_doc(pkg: &Package) -> Result<Doc> {
     Ok(doc)
 }
 
-fn input_path(pkg: &Package) -> Result<PathBuf> {
-    if let Some(t) = pkg
-        .targets
-        .iter()
-        .find(|t| t.kind.iter().any(|k| k == "lib"))
-    {
-        return Ok(t.src_path.clone());
+fn default_input_path(pkg: &Package) -> Result<PathBuf> {
+    for kind in ["lib", "bin", "proc-macro"] {
+        for t in &pkg.targets {
+            if t.kind.iter().any(|k| k == kind) {
+                return Ok(t.src_path.clone());
+            }
+        }
     }
-
-    if let Some(t) = pkg
-        .targets
-        .iter()
-        .find(|t| t.kind.iter().any(|k| k == "bin"))
-    {
-        return Ok(t.src_path.clone());
-    }
-
     Err(anyhow!(
-        "failed to determine default source file for package"
+        "failed to determine default source file for package `{}`",
+        pkg.name
     ))
 }
 
-fn output_path(pkg: &Package) -> PathBuf {
-    pkg.readme
+fn default_output_path(pkg: &Package) -> PathBuf {
+    let base = pkg
+        .readme
         .as_deref()
-        .unwrap_or_else(|| Path::new("README.md"))
-        .to_path_buf()
+        .unwrap_or_else(|| Path::new("README.md"));
+    pkg.manifest_path.parent().unwrap().join(base).to_path_buf()
 }
 
 #[cfg(test)]
