@@ -1,6 +1,6 @@
 [package]
 name = "cargo-onedoc"
-version = "0.0.5"
+version = "0.1.0"
 authors = ["Ross MacArthur <ross@macarthur.io>"]
 edition = "2021"
 description = "Generate your README.md from Rust doc comments"
