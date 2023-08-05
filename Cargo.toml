@@ -12,19 +12,19 @@ categories = ["development-tools::cargo-plugins"]
 include = ["src/**/*", "LICENSE-*", "README.md"]
 
 [dependencies]
-anyhow = "1.0.66"
-camino = "1.1.1"
-cargo_metadata = "0.15.2"
-pulldown-cmark = "0.9.2"
+anyhow = "1.0.72"
+camino = "1.1.6"
+cargo_metadata = "0.17.0"
+pulldown-cmark = "0.9.3"
 pulldown-cmark-to-cmark = "10.0.4"
-pulldown-cmark-toc = "0.1.1"
+pulldown-cmark-toc = "0.2.0"
 regex-macro = "0.2.0"
-serde = { version = "1.0.147", features = ["derive"] }
-toml = "0.5.9"
-upon = "0.6.0"
+serde = { version = "1.0.181", features = ["derive"] }
+toml = "0.7.6"
+upon = "0.7.1"
 
 [dependencies.clap]
-version = "4.0.26"
+version = "4.3.19"
 default-features = false
 features = [
     "std", "help", "usage", "error-context", "suggestions", # default excluding "color"

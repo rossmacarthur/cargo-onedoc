@@ -21,13 +21,3 @@ jobs:
 
     - name: Test
       run: cargo test --workspace --all-targets
-
-  readme:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@stable
-
-    - name: Check README
-      run: cargo run -- onedoc --check

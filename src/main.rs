@@ -1,8 +1,3 @@
-//! 📝 Generate README.md from doc comments.
-//!
-//! Only write your documentation once! This crate provides a Cargo subcommand
-//! that can generate Markdown files from your Rust doc comments.
-
 mod config;
 mod fix;
 mod render;
@@ -15,6 +10,7 @@ use anyhow::{anyhow, bail, Context as _, Result};
 use camino::Utf8Path as Path;
 use cargo_metadata::Package;
 use clap::Parser as _;
+use pulldown_cmark::HeadingLevel;
 use pulldown_cmark::{Options, Parser};
 use pulldown_cmark_toc as toc;
 
@@ -203,7 +199,7 @@ fn render(
     };
 
     let toc = toc::TableOfContents::new(&full_contents)
-        .to_cmark_with_options(toc::Options::default().levels(2..=6));
+        .to_cmark_with_options(toc::Options::default().levels(HeadingLevel::H2..=HeadingLevel::H6));
 
     let mut rendered = engine
         .get_template(template_name)
@@ -215,6 +211,7 @@ fn render(
             full_contents: full_contents,
             toc: toc,
         })
+        .to_string()
         .map_err(|e| anyhow!("{:#}", e))?;
 
     // Append link info

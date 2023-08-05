@@ -2,9 +2,9 @@
 
 # {{ manifest.name }}
 
-[![Crates.io Version](https://img.shields.io/crates/v/{{ manifest.name }}.svg)](https://crates.io/crates/{{ manifest.name }})
-[![Docs.rs Latest](https://img.shields.io/badge/docs.rs-latest-blue.svg)](https://docs.rs/{{ manifest.name }})
-[![Build Status](https://img.shields.io/github/actions/workflow/status/{{ manifest.repository | trim_prefix: "https://github.com/" }}/build.yaml?branch=trunk)]({{ manifest.repository }}/actions/workflows/build.yaml?query=branch%3Atrunk)
+[![Crates.io Version](https://badgers.space/crates/version/{{ manifest.name }})](https://crates.io/crates/{{ manifest.name }})
+[![Docs.rs Latest](https://badgers.space/badge/docs.rs/latest/blue)](https://docs.rs/{{ manifest.name }})
+[![Build Status](https://badgers.space/github/checks/{{ manifest.repository | trim_prefix: "https://github.com/" }}?label=build)]({{ manifest.repository }}/actions/workflows/build.yaml)
 
 {{ summary }}
 
