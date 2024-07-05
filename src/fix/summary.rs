@@ -1,4 +1,4 @@
-use pulldown_cmark::{Event, Tag};
+use pulldown_cmark::{Event, Tag, TagEnd};
 
 /// Extract the summary and the rest of the events.
 pub fn fix(events: Vec<Event>) -> (Vec<Event>, Vec<Event>) {
@@ -12,7 +12,7 @@ pub fn fix(events: Vec<Event>) -> (Vec<Event>, Vec<Event>) {
                 count += 1;
                 left.push(event);
             }
-            Event::End(Tag::Paragraph) => {
+            Event::End(TagEnd::Paragraph) => {
                 count -= 1;
                 left.push(event);
                 if count == 0 {

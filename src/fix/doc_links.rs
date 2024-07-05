@@ -1,4 +1,4 @@
-use pulldown_cmark::{CowStr, Event, LinkType, Tag};
+use pulldown_cmark::{CowStr, Event, LinkType, Tag, TagEnd};
 use regex_macro::regex;
 
 use crate::{Context, Links};
@@ -25,7 +25,7 @@ pub fn fix<'a>(ctx: &Context, links: &mut Links, events: Vec<Event<'a>>) -> Vec<
                             Some(dest) => {
                                 let link_ref = link_ref(text);
 
-                                let links = links.entry(link_ref.clone()).or_insert_with(Vec::new);
+                                let links = links.entry(link_ref.clone()).or_default();
                                 let i = match links.iter().position(|u| *u == dest) {
                                     Some(i) => i,
                                     None => {
@@ -40,14 +40,16 @@ pub fn fix<'a>(ctx: &Context, links: &mut Links, events: Vec<Event<'a>>) -> Vec<
                                     format!("{}-{}", link_ref, i)
                                 };
 
-                                let tag = Tag::Link(
-                                    LinkType::Reference,
-                                    CowStr::Boxed(actual.into_boxed_str()),
-                                    CowStr::Borrowed(""),
-                                );
-                                events.push(Event::Start(tag.clone()));
+                                let tag = Tag::Link {
+                                    link_type: LinkType::Reference,
+                                    dest_url: CowStr::Boxed(actual.into_boxed_str()),
+                                    title: CowStr::Borrowed(""),
+                                    id: CowStr::Borrowed(""),
+                                };
+                                let tag_end = TagEnd::Link;
+                                events.push(Event::Start(tag));
                                 events.push(Event::Code(CowStr::Borrowed(text)));
-                                events.push(Event::End(tag.clone()));
+                                events.push(Event::End(tag_end));
                             }
                             None => {
                                 eprintln!("warn: unprocessed link `{}`", text);

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use pulldown_cmark::{CodeBlockKind, CowStr, Event, Tag};
+use pulldown_cmark::{CodeBlockKind, CowStr, Event, Tag, TagEnd};
 
 /// Fixes code blocks.
 pub fn fix(events: Vec<Event>) -> Result<Vec<Event>> {
@@ -9,15 +9,16 @@ pub fn fix(events: Vec<Event>) -> Result<Vec<Event>> {
         match event {
             Event::Start(Tag::CodeBlock(kind)) if is_rust(&kind) => {
                 let tag = Tag::CodeBlock(fix_code_block_kind(kind));
-                events.push(Event::Start(tag.clone()));
+                let tag_end = TagEnd::CodeBlock;
+                events.push(Event::Start(tag));
 
                 loop {
                     match iter.next().unwrap() {
                         Event::Text(code) => {
                             events.push(Event::Text(fix_code_block(code)));
                         }
-                        Event::End(Tag::CodeBlock(_)) => {
-                            events.push(Event::End(tag));
+                        Event::End(TagEnd::CodeBlock) => {
+                            events.push(Event::End(tag_end));
                             break;
                         }
                         event => {
