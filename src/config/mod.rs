@@ -6,7 +6,7 @@ use std::io;
 
 use anyhow::{anyhow, Context as _, Result};
 use camino::{Utf8Path as Path, Utf8PathBuf as PathBuf};
-use cargo_metadata::{Metadata, Package};
+use cargo_metadata::{Metadata, Package, TargetKind};
 use serde::Deserialize;
 
 /// Configuration of which files to process.
@@ -87,7 +87,7 @@ fn default_doc(pkg: &Package) -> Result<Doc> {
 }
 
 fn default_input_path(pkg: &Package) -> Result<PathBuf> {
-    for kind in ["lib", "bin", "proc-macro"] {
+    for kind in &[TargetKind::Lib, TargetKind::Bin, TargetKind::ProcMacro] {
         for t in &pkg.targets {
             if t.kind.iter().any(|k| k == kind) {
                 return Ok(t.src_path.clone());

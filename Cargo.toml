@@ -14,14 +14,14 @@ include = ["src/**/*", "LICENSE-*", "README.md"]
 [dependencies]
 anyhow = "1.0.86"
 camino = "1.1.7"
-cargo_metadata = "0.18.1"
+cargo_metadata = "0.19.2"
 pulldown-cmark = "0.11.0"
 pulldown-cmark-to-cmark = "15.0.1"
 pulldown-cmark-toc = "0.5.0"
-regex-macro = "0.2.0"
-serde = { version = "1.0.203", features = ["derive"] }
-toml = "0.8.14"
-upon = "0.8.1"
+regex-macro = "0.3.0"
+serde = { version = "1.0.219", features = ["derive"] }
+toml = "0.8.20"
+upon = "0.9.0"
 
 [dependencies.clap]
 version = "4.5.8"
@@ -30,3 +30,6 @@ features = [
     "std", "help", "usage", "error-context", "suggestions", # default excluding "color"
     "cargo", "env", "derive"                                # optional
 ]
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"

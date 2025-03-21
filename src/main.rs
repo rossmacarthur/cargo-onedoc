@@ -237,6 +237,8 @@ fn render(
 mod tests {
     use super::*;
 
+    use pretty_assertions::assert_eq;
+
     fn quick_render(
         config: &str,
         to_process: impl IntoIterator<Item = (Kind, &'static str)>,
