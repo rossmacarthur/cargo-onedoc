@@ -40,7 +40,7 @@ struct Opt {
 
 pub struct Context<'a> {
     check: bool,
-    package: &'a Package,
+    package: Option<&'a Package>,
     config: Config,
 }
 fn main() -> Result<()> {
@@ -59,7 +59,7 @@ fn main() -> Result<()> {
     let config = config::load(&metadata, pkg)?;
     generate_all(Context {
         check,
-        package: pkg,
+        package: Some(pkg),
         config,
     })
 }
@@ -178,11 +178,11 @@ fn render(
         es = fix::headings(es);
         match kind {
             Kind::RustDoc => {
-                es = fix::code_blocks(es).context("failed to fix codeblocks")?;
-                es = fix::doc_links(ctx, &mut link_config, es);
+                es = fix::code_blocks(es).context("failed to fix code blocks")?;
+                es = fix::doc_links(&ctx.config, &mut link_config, es);
             }
             Kind::Markdown => {
-                es = fix::rel_links(ctx, es);
+                es = fix::rel_links(&ctx.config, es);
             }
         }
         events.extend(es);
@@ -231,4 +231,131 @@ fn render(
     }
 
     Ok(rendered)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn quick_render(
+        config: &str,
+        to_process: impl IntoIterator<Item = (Kind, &'static str)>,
+    ) -> Result<String> {
+        let engine = {
+            let mut e = upon::Engine::new();
+            e.add_template("README.md", "{{ summary }}\n{{ contents }}")?;
+            e
+        };
+        let to_process = Vec::from_iter(to_process.into_iter().map(|(k, s)| (k, s.to_owned())));
+        let ctx = Context {
+            check: false,
+            package: None,
+            config: toml::from_str(config).unwrap(),
+        };
+        render(&engine, &ctx, "README.md", to_process)
+    }
+
+    #[test]
+    fn test_rustdoc_fix_code_blocks() {
+        let doc = "```\npanic!()\n```\n";
+        let expected = "\n```rust\npanic!()\n```\n";
+        let result = quick_render("", [(Kind::RustDoc, doc)]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_rustdoc_fix_doc_links() {
+        let config = r#"
+[links]
+"bar" = "https://example.com/foo/bar"
+"#;
+        let doc = "\nHere is [`bar`]\n";
+        let expected = "Here is [`bar`][bar]\n\n\n\
+                        [bar]: https://example.com/foo/bar\n";
+
+        let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_rustdoc_fix_doc_links_unprocessed() {
+        let config = "";
+        let doc = "\nHere is [`bar`]\n";
+        let expected = "Here is `bar`\n";
+
+        let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_rustdoc_fix_doc_links2() {
+        let config = r#"
+[links]
+"bar" = "https://example.com/foo/bar"
+"#;
+        let doc = "\nHere is [`bar`]\n\n[`bar`]: foo::bar";
+        let expected = "Here is [`bar`][bar]\n\n\n\
+                        [bar]: https://example.com/foo/bar\n";
+
+        let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_rustdoc_fix_doc_links2_unprocessed() {
+        let config = "";
+        let doc = "\nHere is [`bar`][bar]\n";
+        let expected = "Here is `bar`\n";
+
+        let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_rustdoc_fix_doc_links3() {
+        let config = r#"
+[links]
+"foo::bar" = "https://example.com/foo/bar"
+"#;
+        let doc = "\nHere is [`bar`][foo::bar]\n";
+        let expected = "Here is [`bar`][foo::bar]\n\n\n\
+                        [foo::bar]: https://example.com/foo/bar\n";
+
+        let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_rustdoc_fix_doc_links3_unprocessed() {
+        let config = "";
+        let doc = "\nHere is [`bar`][foo::bar]\n";
+        let expected = "Here is `bar`\n";
+
+        let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_markdown_fix_rel_link() {
+        let config = r#"
+[links]
+"bar.md" = "https://example.com/bar"
+"#;
+        let md = r#"
+Here is [foo](bar.md#foo)
+
+Here is [foo]
+Here is [bar][foo]
+
+[foo]: bar.md#foo
+"#;
+        let expected = r#"Here is [foo](https://example.com/bar#foo)
+Here is [foo]
+Here is [bar](https://example.com/bar#foo)
+
+[foo]: https://example.com/bar#foo"#;
+
+        let result = quick_render(config, [(Kind::Markdown, md)]).unwrap();
+        assert_eq!(expected, result);
+    }
 }
