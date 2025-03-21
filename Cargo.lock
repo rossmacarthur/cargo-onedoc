@@ -45,7 +45,9 @@ dependencies = [
  "anyhow",
  "camino",
  "cargo_metadata",
+ "casual",
  "clap",
+ "constcat",
  "pretty_assertions",
  "pulldown-cmark",
  "pulldown-cmark-to-cmark",
@@ -78,6 +80,12 @@ dependencies = [
  "serde_json",
  "thiserror",
 ]
+
+[[package]]
+name = "casual"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02bac00d171e78bbd71fe323666881647f18ce2a6c7460e9d1baddeefa3c3420"
 
 [[package]]
 name = "clap"
@@ -117,6 +125,12 @@ name = "clap_lex"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
+
+[[package]]
+name = "constcat"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ffb5df6dd5dadb422897e8132f415d7a054e3cd757e5070b663f75bea1840fb"
 
 [[package]]
 name = "diff"
