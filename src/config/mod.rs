@@ -8,10 +8,15 @@ use anyhow::{anyhow, Context as _, Result};
 use camino::{Utf8Path as Path, Utf8PathBuf as PathBuf};
 use cargo_metadata::{Metadata, Package, TargetKind};
 use serde::Deserialize;
+use serde::Serialize;
 
 /// Configuration of which files to process.
-#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Config {
+    /// The badges configuration
+    #[serde(default)]
+    pub badges: Badges,
+
     /// A list of processes that each outputs a single Markdown file
     #[serde(default, rename = "doc")]
     pub docs: Vec<Doc>,
@@ -21,7 +26,78 @@ pub struct Config {
     pub links: HashMap<String, String>,
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+fn default_true() -> bool {
+    true
+}
+
+/// Badges to be added to the output file
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Badges {
+    /// Whether to add a badge for the crates.io page
+    #[serde(default = "default_true")]
+    crates_io: bool,
+
+    /// Whether to add a badge for the docs.rs page
+    #[serde(default = "default_true")]
+    docs_rs: bool,
+
+    /// Whether to add a badge for the GitHub check
+    #[serde(default)]
+    github_workflow: Option<GitHubWorkflowBadge>,
+}
+
+impl Default for Badges {
+    fn default() -> Self {
+        Self {
+            crates_io: true,
+            docs_rs: true,
+            github_workflow: Some(GitHubWorkflowBadge::default()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct GitHubWorkflowBadge {
+    label: String,
+    name: String,
+}
+
+impl Default for GitHubWorkflowBadge {
+    fn default() -> Self {
+        Self {
+            label: "build".to_owned(),
+            name: "build".to_owned(),
+        }
+    }
+}
+
+// Custom deserialization for GitHubWorkflowBadge to make label default to name
+impl<'de> Deserialize<'de> for GitHubWorkflowBadge {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        fn default_build() -> String {
+            "build".to_owned()
+        }
+
+        #[derive(Deserialize)]
+        struct GitHubWorkflowBadgeHelper {
+            label: Option<String>,
+            #[serde(default = "default_build")]
+            name: String,
+        }
+
+        let helper = GitHubWorkflowBadgeHelper::deserialize(deserializer)?;
+
+        Ok(GitHubWorkflowBadge {
+            label: helper.label.unwrap_or_else(|| helper.name.clone()),
+            name: helper.name,
+        })
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Doc {
     /// A list of input file paths.
     ///
@@ -113,6 +189,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn badges() {
+        let config: Config = toml::from_str(
+            r#"
+[badges]
+crates_io = false
+docs_rs = false
+github_workflow = { name = "ci" }
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config,
+            Config {
+                badges: Badges {
+                    crates_io: false,
+                    docs_rs: false,
+                    github_workflow: Some(GitHubWorkflowBadge {
+                        label: "ci".to_owned(),
+                        name: "ci".to_owned(),
+                    }),
+                },
+                docs: vec![],
+                links: HashMap::new(),
+            }
+        );
+    }
+
+    #[test]
     fn single_input_string() {
         let config: Config = toml::from_str(
             r#"
@@ -127,6 +232,7 @@ template = "docs/README_TEMPLATE.md"
         assert_eq!(
             config,
             Config {
+                badges: Badges::default(),
                 docs: vec![Doc {
                     inputs: vec!["src/lib.rs".into()],
                     output: "README.md".into(),
@@ -152,6 +258,7 @@ template = "docs/README_TEMPLATE.md"
         assert_eq!(
             config,
             Config {
+                badges: Badges::default(),
                 docs: vec![Doc {
                     inputs: vec!["src/lib.rs".into(), "src/other.rs".into()],
                     output: "README.md".into(),

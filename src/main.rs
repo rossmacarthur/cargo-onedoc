@@ -243,6 +243,7 @@ fn render(
         .get_template(template_name)
         .unwrap()
         .render(upon::value! {
+            config: &ctx.config,
             manifest: ctx.package,
             summary: summary,
             contents: contents,
