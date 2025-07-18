@@ -1,8 +1,8 @@
 use pulldown_cmark::{CowStr, Event, LinkType, Tag, TagEnd};
 use regex_macro::regex;
 
-use crate::config::Config;
 use crate::Links;
+use crate::config::Config;
 
 /// Fixes intra-doc links.
 pub fn fix<'a>(config: &Config, links: &mut Links, events: Vec<Event<'a>>) -> Vec<Event<'a>> {
@@ -50,7 +50,7 @@ pub fn fix<'a>(config: &Config, links: &mut Links, events: Vec<Event<'a>>) -> Ve
                                 }
                             }
                             _ => {
-                                eprintln!("warn: unprocessed link `{}`", dest_url);
+                                eprintln!("warn: unprocessed link `{dest_url}`");
                                 events.extend(link_text);
                             }
                         }
@@ -116,7 +116,7 @@ pub fn fix<'a>(config: &Config, links: &mut Links, events: Vec<Event<'a>>) -> Ve
                                                 link_dest,
                                             ),
                                             None => {
-                                                println!("warn: unprocessed link `{}`", text);
+                                                println!("warn: unprocessed link `{text}`");
                                                 events.extend(maybe_link_text);
                                             }
                                         }
@@ -158,7 +158,7 @@ fn replace_dest<'a>(
     let actual = if i == 0 {
         link_ref
     } else {
-        format!("{}-{}", link_ref, i)
+        format!("{link_ref}-{i}")
     };
 
     events.push(Event::Start(Tag::Link {

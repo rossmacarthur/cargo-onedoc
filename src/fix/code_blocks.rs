@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Tag, TagEnd};
 
 /// Fixes code blocks.

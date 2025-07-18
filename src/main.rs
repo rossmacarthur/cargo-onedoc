@@ -146,13 +146,13 @@ fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context<'_>, doc: &Doc) -> 
                 Some("rs") => {
                     let kind = Kind::RustDoc;
                     let text = get_module_comment(input)
-                        .with_context(|| format!("failed to read from `{}`", input))?;
+                        .with_context(|| format!("failed to read from `{input}`"))?;
                     (kind, text)
                 }
                 Some("md") => {
                     let kind = Kind::Markdown;
                     let text = fs::read_to_string(input)
-                        .with_context(|| format!("failed to read from `{}`", input))?;
+                        .with_context(|| format!("failed to read from `{input}`"))?;
                     (kind, text)
                 }
                 Some(_) | None => {
@@ -187,7 +187,7 @@ fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context<'_>, doc: &Doc) -> 
             Some(current) => {
                 // Check if there is a header, if there isn't then we should
                 // first confirm the user really wants to overwrite the file.
-                match HEADER_REGEX.captures(&current) {
+                match HEADER_REGEX.captures(current) {
                     Some(caps) => {
                         // Check is header is a compatible version, if the rest
                         // of the document matches then we won't update the
@@ -195,7 +195,7 @@ fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context<'_>, doc: &Doc) -> 
                         let header = caps.get(0).unwrap().as_str();
                         let current = &current[header.len()..];
                         let req = semver::VersionReq::parse(&caps[1]).ok();
-                        let version = semver::Version::parse(&VERSION).unwrap();
+                        let version = semver::Version::parse(VERSION).unwrap();
                         match (req, version) {
                             (Some(req), ours) if req.matches(&ours) => match current == rendered {
                                 true => Action::Skip,
@@ -327,10 +327,10 @@ fn render(
                 let name = if i == 0 {
                     name.to_owned()
                 } else {
-                    format!("{}-{}", name, i)
+                    format!("{name}-{i}")
                 };
-                rendered = rendered.replace(&format!("({})", name), &format!("[{}]", name));
-                rendered.push_str(&format!("[{}]: {}\n", name, u));
+                rendered = rendered.replace(&format!("({name})"), &format!("[{name}]"));
+                rendered.push_str(&format!("[{name}]: {u}\n"));
             }
         }
     }

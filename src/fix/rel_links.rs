@@ -35,7 +35,7 @@ pub fn fix<'a>(config: &Config, events: Vec<Event<'a>>) -> Vec<Event<'a>> {
                         events.push(Event::End(TagEnd::Link));
                     }
                     None => {
-                        eprintln!("warn: unprocessed link `{}`", dst_url_no_frag);
+                        eprintln!("warn: unprocessed link `{dst_url_no_frag}`");
                         events.push(iter.next().unwrap());
                     }
                 }

@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use anyhow::Result;
 use pulldown_cmark::Event;
-use pulldown_cmark_to_cmark::{cmark_resume_with_options, Options};
+use pulldown_cmark_to_cmark::{Options, cmark_resume_with_options};
 
 /// Render Markdown events as Markdown.
 pub fn to_cmark<'a, I, E>(events: I) -> Result<String>

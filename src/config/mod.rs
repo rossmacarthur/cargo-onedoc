@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io;
 
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{Context as _, Result, anyhow};
 use camino::{Utf8Path as Path, Utf8PathBuf as PathBuf};
 use cargo_metadata::{Metadata, Package, TargetKind};
 use serde::Deserialize;
@@ -119,7 +119,7 @@ pub fn load(metadata: &Metadata, pkg: &Package) -> Result<Config> {
     let path = workspace_dir.join("onedoc.toml");
 
     let mut config = {
-        let ctx = || format!("failed to load config from `{}`", path);
+        let ctx = || format!("failed to load config from `{path}`");
         load_from_path(&path).with_context(ctx)?
     };
 
