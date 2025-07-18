@@ -2,7 +2,7 @@
 name = "cargo-onedoc"
 version = "0.2.2"
 authors = ["Ross MacArthur <ross@macarthur.io>"]
-edition = "2021"
+edition = "2024"
 description = "Generate your README.md from Rust doc comments"
 readme = "README.md"
 repository = "https://github.com/rossmacarthur/cargo-onedoc"
@@ -21,6 +21,7 @@ pulldown-cmark = "0.11.0"
 pulldown-cmark-to-cmark = "15.0.1"
 pulldown-cmark-toc = "0.5.0"
 regex-macro = "0.3.0"
+semver = "1.0.26"
 serde = { version = "1.0.219", features = ["derive"] }
 toml = "0.8.20"
 upon = "0.9.0"
