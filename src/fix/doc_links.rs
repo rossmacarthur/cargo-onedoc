@@ -151,11 +151,11 @@ fn replace_dest<'a>(
         Some(i) => i,
         None => {
             let i = links.len();
-            links.push(link_dest);
+            links.push(link_dest.clone());
             i
         }
     };
-    let actual = if i == 0 {
+    let id = if i == 0 {
         link_ref
     } else {
         format!("{link_ref}-{i}")
@@ -163,9 +163,9 @@ fn replace_dest<'a>(
 
     events.push(Event::Start(Tag::Link {
         link_type: LinkType::Reference,
-        dest_url: CowStr::Boxed(actual.into_boxed_str()),
+        dest_url: CowStr::Boxed(link_dest.into_boxed_str()),
         title: CowStr::Borrowed(""),
-        id: CowStr::Borrowed(""),
+        id: CowStr::Boxed(id.into_boxed_str()),
     }));
     events.extend(link_text);
     events.push(Event::End(TagEnd::Link));

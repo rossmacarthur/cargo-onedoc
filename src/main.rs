@@ -81,7 +81,7 @@ fn main() -> Result<()> {
         Some(name) => metadata
             .workspace_packages()
             .into_iter()
-            .find(|p| p.name == name)
+            .find(|p| p.name.as_ref() == name)
             .ok_or_else(|| anyhow!("package `{}` not found in workspace", name))?,
         None => metadata.root_package().context("no root package")?,
     };
@@ -99,7 +99,7 @@ fn main() -> Result<()> {
 fn generate_all(ctx: Context<'_>) -> Result<()> {
     let mut engine = {
         let mut e = upon::Engine::new();
-        e.add_filter("trim_prefix", |s: &str, p: &str| {
+        e.add_function("trim_prefix", |s: &str, p: &str| {
             s.trim_start_matches(p).to_owned()
         });
         e
@@ -305,7 +305,7 @@ fn render(
     let toc = toc::TableOfContents::new(&full_contents)
         .to_cmark_with_options(toc::Options::default().levels(HeadingLevel::H2..=HeadingLevel::H6));
 
-    let mut rendered = engine
+    let rendered = engine
         .get_template(template_name)
         .unwrap()
         .render(upon::value! {
@@ -318,22 +318,6 @@ fn render(
         })
         .to_string()
         .map_err(|e| anyhow!("{:#}", e))?;
-
-    // Append link info
-    if !link_config.is_empty() {
-        rendered.push_str("\n\n");
-        for (name, links) in link_config {
-            for (i, u) in links.into_iter().enumerate() {
-                let name = if i == 0 {
-                    name.to_owned()
-                } else {
-                    format!("{name}-{i}")
-                };
-                rendered = rendered.replace(&format!("({name})"), &format!("[{name}]"));
-                rendered.push_str(&format!("[{name}]: {u}\n"));
-            }
-        }
-    }
 
     Ok(rendered)
 }
@@ -379,7 +363,7 @@ mod tests {
 "bar" = "https://example.com/foo/bar"
 "#;
         let doc = "\nHere is [`bar`]\n";
-        let expected = "Here is [`bar`][bar]\n\n\n\
+        let expected = "Here is [`bar`][bar]\n\n\
                         [bar]: https://example.com/foo/bar\n";
 
         let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
@@ -403,7 +387,7 @@ mod tests {
 "bar" = "https://example.com/foo/bar"
 "#;
         let doc = "\nHere is [`bar`]\n\n[`bar`]: foo::bar";
-        let expected = "Here is [`bar`][bar]\n\n\n\
+        let expected = "Here is [`bar`][bar]\n\n\
                         [bar]: https://example.com/foo/bar\n";
 
         let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
@@ -427,7 +411,7 @@ mod tests {
 "foo::bar" = "https://example.com/foo/bar"
 "#;
         let doc = "\nHere is [`bar`][foo::bar]\n";
-        let expected = "Here is [`bar`][foo::bar]\n\n\n\
+        let expected = "Here is [`bar`][foo::bar]\n\n\
                         [foo::bar]: https://example.com/foo/bar\n";
 
         let result = quick_render(config, [(Kind::RustDoc, doc)]).unwrap();
@@ -460,7 +444,7 @@ Here is [bar][foo]
 "#;
         let expected = r#"Here is [foo](https://example.com/bar#foo)
 Here is [foo]
-Here is [bar](https://example.com/bar#foo)
+Here is [bar][foo]
 
 [foo]: https://example.com/bar#foo"#;
 
