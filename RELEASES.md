@@ -1,5 +1,15 @@
 # 📝 Release notes
 
+## 0.3.1
+
+*July 18th, 2025*
+
+- [Downgrade `toml` to prevent duplicate dependencies][ae3d377a]
+- [Fix grammar in prompt message][0420e4b8]
+
+[ae3d377a]: https://github.com/rossmacarthur/cargo-onedoc/commit/ae3d377a2ee99af7d3cd51c7d81165a0b971d5ba
+[0420e4b8]: https://github.com/rossmacarthur/cargo-onedoc/commit/0420e4b8fb5de78deae218188725169800c16173
+
 ## 0.3.0
 
 *July 18th, 2025*
