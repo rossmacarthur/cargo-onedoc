@@ -1,4 +1,3 @@
-
 # cargo-onedoc
 
 [![Crates.io Version](https://badgers.space/crates/version/cargo-onedoc)](https://crates.io/crates/cargo-onedoc)
@@ -10,7 +9,24 @@
 Only write your documentation once! This crate provides a Cargo subcommand that
 can generate Markdown files from your Rust doc comments.
 
-## Features
+## 🚀 Getting started
+
+First, install the tool using cargo
+
+```sh
+cargo install cargo-onedoc
+```
+
+Then generate your README from your `lib.rs` using the following.
+
+```sh
+cargo onedoc
+```
+
+This will generate a README using the default template. See [config](#config)
+for how to configure how files are generated.
+
+## 🌟 Features
 
 This tool can take one or more Markdown files and/or Rust source files and
 output a single Markdown file.
@@ -76,20 +92,39 @@ The following doc comment
 Will become
 
 ```markdown
-Render the template to a [`String`](https://doc.rust-lang.org/stable/std/string/struct.String.html).
+Render the template to a [`String`][String].
+
+[String]: https://doc.rust-lang.org/stable/std/string/struct.String.html
 ```
 
-## Config
+## 👷 Config
 
-This tool can be configured using a `onedoc.toml` file. There are two main
-sections `doc` and `links`.
+This tool can be configured using a `onedoc.toml` file. There are three main
+sections `badges`, `doc` and `links`.
+
+### `badges`
+
+The badges settings are only relevant if you use the default README template.
+
+```toml
+[badges]
+crates_io = true  # whether to add a badge for the crates.io page
+docs_rs = true    # whether to add a badge for the docs.rs page
+
+# optional badge for a github workflow
+# name should be the name of the github workflow
+github_workflow = { label = "build", name = "build" }
+```
 
 ### `doc`
 
 The `doc` section is used to specify the input files and the output file. The
 `input` field is a list of files to read. The `output` field is the file to
-write to. The `template` field is the template file to use. Here is an example
-from the [`sheldon`](https://github.com/rossmacarthur/sheldon) repository.
+write to. The `template` field is the template file to use.
+
+Here is an example from the
+[`sheldon`](https://github.com/rossmacarthur/sheldon) repository. This
+constructs a `README.md` using multiple Markdown files.
 
 ```toml
 [[doc]]
@@ -102,6 +137,18 @@ input = [
 output = "README.md"
 template = "docs/README_TEMPLATE.md"
 ```
+
+Here is another example from the [`upon`](https://github.com/rossmacarthur/upon)
+repository.
+
+```toml
+[[doc]]
+input = "src/syntax.rs"
+output = "SYNTAX.md"
+template = "docs/SYNTAX_TEMPLATE.md"
+```
+
+This constructs `SYNTAX.md` from the given Rust module and provided template.
 
 ### `links`
 
