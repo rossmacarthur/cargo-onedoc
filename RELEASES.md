@@ -2,11 +2,13 @@
 
 ## 0.3.2
 
-*Unreleased*
+*July 31st, 2025*
 
-- [Use `syn` to extract Rust module comments][todo]. This allows for more
+- [Use `syn` to extract Rust module comments][54a8c09c]. This allows for more
   accurate extraction of comments from Rust modules including those specified
   using `#![doc = "..."]` and `#![cfg_attr(..., doc = "...")]` attributes.
+
+[54a8c09c]: https://github.com/rossmacarthur/cargo-onedoc/commit/54a8c09c0b9508add0051a5985c825c5b9352d11
 
 ## 0.3.1
 
