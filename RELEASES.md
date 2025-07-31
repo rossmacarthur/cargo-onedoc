@@ -1,5 +1,13 @@
 # 📝 Release notes
 
+## 0.3.2
+
+*Unreleased*
+
+- [Use `syn` to extract Rust module comments][todo]. This allows for more
+  accurate extraction of comments from Rust modules including those specified
+  using `#![doc = "..."]` and `#![cfg_attr(..., doc = "...")]` attributes.
+
 ## 0.3.1
 
 *July 18th, 2025*

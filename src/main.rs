@@ -145,7 +145,7 @@ fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context<'_>, doc: &Doc) -> 
             let item = match input.extension() {
                 Some("rs") => {
                     let kind = Kind::RustDoc;
-                    let text = get_module_comment(input)
+                    let text = parse_rust_file_comment(input)
                         .with_context(|| format!("failed to read from `{input}`"))?;
                     (kind, text)
                 }
@@ -256,14 +256,65 @@ fn generate_doc(engine: &mut upon::Engine<'_>, ctx: &Context<'_>, doc: &Doc) -> 
     Ok(())
 }
 
-fn get_module_comment(path: &Path) -> Result<String> {
+fn parse_rust_file_comment(path: &Path) -> Result<String> {
     let contents = fs::read_to_string(path)?;
-    let lines: Vec<_> = contents
-        .lines()
-        .take_while(|line| line.starts_with("//!"))
-        .map(|line| line.trim_start_matches("//! ").trim_start_matches("//!"))
+    let f: syn::File = syn::parse_str(&contents)?;
+    let comments: Vec<_> = f
+        .attrs
+        .iter()
+        .filter_map(extract_doc_attr)
+        .map(trim_leading_space)
         .collect();
-    Ok(lines.join("\n"))
+    Ok(comments.join("\n"))
+}
+
+fn extract_doc_attr(attr: &syn::Attribute) -> Option<String> {
+    use proc_macro2::{TokenStream, TokenTree};
+
+    // First check for attributes like #![doc = ], this is also how normal
+    // comments are represented in the syntax tree
+    if let syn::Meta::NameValue(meta) = &attr.meta
+        && meta.path.is_ident("doc")
+        && let syn::Expr::Lit(expr) = &meta.value
+        && let syn::Lit::Str(lit) = &expr.lit
+    {
+        return Some(lit.value());
+    }
+
+    // Then check for attributes like #![cfg_attr(condition, doc = "")], this is
+    // sometimes used when documentation is conditionally included based on
+    // features
+    if let syn::Meta::List(meta) = &attr.meta
+        && meta.path.is_ident("cfg_attr")
+    {
+        // Extract the tokens after the condition
+        let tokens: TokenStream = meta
+            .tokens
+            .clone()
+            .into_iter()
+            .skip_while(|tree| !matches!(tree, TokenTree::Punct(p) if p.as_char() == ','))
+            .skip(1)
+            .collect();
+
+        let meta: syn::Meta = syn::parse2(tokens).ok()?;
+
+        if let syn::Meta::NameValue(meta) = &meta
+            && meta.path.is_ident("doc")
+            && let syn::Expr::Lit(expr) = &meta.value
+            && let syn::Lit::Str(lit) = &expr.lit
+        {
+            return Some(lit.value());
+        }
+    }
+
+    None
+}
+
+fn trim_leading_space(mut line: String) -> String {
+    if line.starts_with(' ') {
+        line.remove(0);
+    }
+    line
 }
 
 /// Renders the contents excluding the header.
